@@ -1,0 +1,16 @@
+#!/usr/bin/env sh
+srcHtml=src
+docDirFromSrc=../documentation/html
+mkdir -p $docDirFromSrc/$srcHtml/
+
+for file in $@
+do 
+    HsColour -html -anchor $file > $docDirFromSrc/$srcHtml/$(basename $file .hs).html
+done
+
+
+haddock --html --title "INGI2325 - Brack Nicolas" -o $docDirFromSrc \
+    --read-interface=http://www.haskell.org/ghc/docs/latest/html/libraries/base,/usr/share/doc/ghc/html/libraries/base-4.3.1.0/base.haddock \
+    --read-interface=http://hackage.haskell.org/packages/archive/hxt/9.1.1/doc/html,hxt.haddock \
+    --source-base=$srcHtml --source-module=$srcHtml/%M.html --source-entity="$srcHtml/%M.html#%N" \
+    $@

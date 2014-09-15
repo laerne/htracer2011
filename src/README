@@ -1,0 +1,139 @@
+Directory structure :
+---------------------
+
+src/
+    Contains the source code
+documentation/
+    Contains the documentation of the source code, in html.
+scenes/
+    Contains some obj and sdl files
+    WARNING : current code does not manage .obg files that do NOT specify the
+            normal vectors. This should be corrected in next session.
+bin/
+    Some pre-build executables
+
+Building :
+----------
+You MUST have ghc installed on your computer.
+Plus the usual libraries like Data.Map, System.Directory, you must install the
+following libraries, and to install them, I recommand to use 'cabal' (You may
+install in non-priviligied user).
+    * SDL
+    * HXT
+
+so, on Fedora for example, install with :
+# yum install haskell
+$ cabal instal SDL hxt
+    
+
+Then go in the src directory and build with ghc.
+$ cd src
+$ ghc --make Main.hs
+If you wish a basic makefile is also available.  You must nevertheless have GHC installed and in your path.
+$ cd src
+$ make
+
+if you didn't manage to build code, a pre-build executable for linux is located in bin/
+
+To build documentation, you must have haddock (usually distributed with ghc), and HsColour :
+$ ghc install hscolour
+Then, in the src directory, run ./mkdoc
+$ cd src
+$ ./mkdoc
+WARNING: Ensure HsColour is in your executable path. My path was automaticaly
+updated on previous computer, but on this one it didn't.
+
+Execution :
+-----------
+
+Usage: ingi2325-nbrack [OPTION...] FILE...    where FILE is the file to process.
+  -h, -?      --help                                  Display this help message.
+  -d <W>x<H>  --dim=<W>x<H>                           Set the image dimension in pixels. (default: 64x64 )
+              --with-kdtree                           Enable the use of a kdTree. (default)
+              --no-kdtree                             Disable the use of a kdTree.
+              --render-kdtree                         Render the external box of the kdTree.
+                                                      Black pixels are missed pixels. Grey and white ones have a ray that transverse the tree.
+  -o <FILE>   --output-file=<FILE>, --save-as=<FILE>  Do not display render, instead, save it to the bmp image file <FILE>.
+  -s          --output-window, --display-on-screen    Render image in a window. (default)
+
+Give the filename from current directory to here.
+
+Description :
+-------------
+
+The project was made in haskell. The first advantages is that lazy evaluation
+enables to returns some value for free, and then to compute only some of them.
+For instance when an intersection occurs, the interpolated normal vector is
+returned. But that normal is not computed until needed. So, for all the
+intersections, only the normal of the actual intersection is computed.
+
+Another avantage was the easiness of mathematics. Mathematics functions were
+fastly written, and with few errors, and are really intuitive to use.
+I wrote operator along the following pattern. I use the usual symbol from
+mathematis, and i append it a string that represents the type of the given
+elements. Matrix is @@@, vector is @, scalar is . and color is #.
+For example :
+    @+@ : sum of two products
+    @@@*@@@ : matrix product
+    .*@ : product by a scalar of a vector.
+    #+# : sum of colors
+
+The first drawback was that I had to rewrite the XML parser. I decided to use
+HXT for that, thought it never used it I spend a very long time to understand
+how to use it, and to implement it from scratch. I would say that 60% of the
+time I spend on the project was devoted to the xml parser. It suspect the code
+to be very inneficient, with the use of unordered lists.
+
+The displayer uses SDL, which was absolutly not though to be used with a
+functional language, hence there is no per-pixel operation. The displayer uses
+very unefficient code.
+
+Haskell lazyness is also a drawback. Indeed, when it needs a value, it will do
+severals system calls, thus slowing up the program.
+
+Haskell is also slow because recursive function do a lot of memory allocation.
+Render time for simple scenes is extremely high. If I have to do another
+raytracer, I would write it in C, to avoid that two lasts drawbacks.
+
+Last remark, the code of the actual raytracer (not the parser or the displayer)
+is data-free. In other words it uses generic RealFloat type, and either Double's
+and Float's could be used for computation. Color is custom generic type, and
+cane be in any channel. Implemented channels are RGB bothly in Integer and
+Floats, and BW, a single gray scale channel in Float. Another problem came up
+when I had to multiply color by a scalar value computed from the scene.
+For example, the RGB color in Float's must be able to be multiplied by the
+generic value RealFloat, that can be Either Double or Float, but there is no
+implicit or explicit cast functions between Float's and Double's.
+
+The sdl.dtd has been slighty modified to support functionalties.  At the time my
+knowledge of SDL was partial, so I made up my own tags and my own arguments.
+Later releases should rename to conventional names when needed.
+
+Here are the custom xml tags :
+<Box/> , with two required arguments, from_vector and to_vector, specifying the
+         dimension of the box.
+<Plane/>, takes two implied arguments, orientation that is either XY,XZ or YZ,
+          and cst, the distance of the plan from the origin.
+<UnlitMaterial/>, with the usual facultative color intensity arguments. The
+                  material do not compute any shadow or else, it simply returns its color.
+<CheckerCombined/>, a 3d texture that use either the first of the second
+                    material depending on were the hit is. Three arguments, the
+                    mendatory matierals to combine, and the facultative checker
+                    te stretch. Note it is currently forced to follow the x,y
+                    and z axes.
+<AmbiantLight/>     with the usual facultative color and intensity values.
+<AreaLight>         with : a "position", a "direction", a "dimensions" (two
+                    dimentional vector), and a up vector that is (0,1,0) by
+                    default.
+
+Here are the new arguments to previous tags:
+* every light has a cast_shadow arguments, that specify whether the light
+  should consider shadow computation or not. By default, it does.
+* The camera has an osa value, that specify the amount of ray to cast for one
+  pixel (antialiasing). When set to 0, the camera do not use antialiasing. Do
+  not mistake with when set to 1, where the camera plot random point on the
+  pixel, for only one ray !
+* It has also a dof argument, that when set to True, will enable depth-of-field.
+  If enabled, you may specify the focus distence with the "focus" argument, and
+  specify the lens size with the lens argument (2D vector). Note the lens size
+  is absolute, not relative to the cameray field-of-view or focuse distance.
